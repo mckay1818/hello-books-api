@@ -1,51 +1,16 @@
-#file will define endpoints
-'''
-from flask import Blueprint, jsonify, abort, make_response
-
-class Book:
-    def __init__(self, id=None, title=None, description=None):
-        self.id = id
-        self.title = title
-        self.description = description
-
-books = [
-    Book(1, "Harry Potter", "A fantasy novel set in an imaginary world."),
-    Book(2, "The Little Prince", "A fantasy novel set in an imaginary world."),
-    Book(3, "Fictional Book Title", "A fantasy novel set in an imaginary world.")
-] 
+from app import db
+from app.models.book import Book
+from flask import Blueprint, jsonify, make_response, request
 
 books_bp = Blueprint("books", __name__, url_prefix="/books")
 
-@books_bp.route("", methods=["GET"])
+@books_bp.route("", methods=["POST"])
 def handle_books():
-    books_response = []
-    for book in books:
-        books_response.append({
-            "id": book.id,
-            "title": book.title,
-            "description": book.description
-        })
-    return jsonify(books_response), 200
+    request_body = request.get_json()
+    new_book = Book(title=request_body["title"],
+        description=request_body["description"])
 
-@books_bp.route("/<book_id>", methods=["GET"])
-def handle_book(book_id):
-    book = validate_book(book_id)
-    return {
-        "id": book.id,
-        "title": book.title,
-        "description": book.description
-    }, 200
+    db.session.add(new_book)
+    db.session.commit()
 
-def validate_book(book_id):
-    try:
-        book_id = int(book_id)
-    except ValueError:
-        abort(make_response({"message": f"book id {book_id} invalid"}, 400))
-
-    for book in books:
-        if book.id == book_id: 
-            return book
-
-    abort(make_response({"message":f"book {book_id} not found"}, 404))
-
-'''
+    return make_response(f"Book {new_book.title} successfully created", 201)
