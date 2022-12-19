@@ -4,26 +4,25 @@ from flask import Blueprint, jsonify, make_response, request
 
 books_bp = Blueprint("books", __name__, url_prefix="/books")
 
-@books_bp.route("", methods=["GET", "POST"])
-def handle_books():
-    if request.method == "GET":
-        books = Book.query.all()
-        books_response = []
+@books_bp.route("", methods=["POST"])
+def create_book():
+    request_body = request.get_json()
+    new_book = Book(title=request_body["title"], description=request_body["description"])
 
-        for book in books:
-            books_response.append({
-                "id": book.id,
-                "title": book.title,
-                "description": book.description
-            })
+    db.session.add(new_book)
+    db.session.commit()
 
-        return jsonify(books_response )
+    return make_response(f"Book {new_book.title} successfully created", 201)
 
-    elif request.method == "POST":
-        request_body = request.get_json()
-        new_book = Book(title=request_body["title"], description=request_body["description"])
+@books_bp.route("", methods=["GET"])
+def read_all_books():
+    books = Book.query.all()
+    books_response = []
+    for book in books:
+        books_response.append({
+            "id": book.id,
+            "title": book.title,
+            "description": book.description
+        })
 
-        db.session.add(new_book)
-        db.session.commit()
-        
-        return make_response(f"Book {new_book.title} successfully created", 201)
+    return jsonify(books_response)
