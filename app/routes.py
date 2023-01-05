@@ -6,6 +6,19 @@ from flask import Blueprint, jsonify, abort, make_response, request
 books_bp = Blueprint("books", __name__, url_prefix="/books")
 authors_bp = Blueprint("authors", __name__, url_prefix="/authors")
 
+def validate_model(cls, model_id):
+    try:
+        model_id = int(model_id)
+    except:
+        abort(make_response(jsonify({"message": f"{cls.__name__} {model_id} invalid"}), 400))
+
+    model = cls.query.get(model_id)
+
+    if not model:
+        abort(make_response(jsonify({"message": f"{cls.__name__} {model_id} not found"}), 404))
+
+    return model
+
 @books_bp.route("", methods=["POST"])
 def create_book():
     request_body = request.get_json()
@@ -28,19 +41,6 @@ def read_all_books():
     for book in books:
         books_response.append(book.to_dict())
     return jsonify(books_response)
-
-def validate_model(cls, model_id):
-    try:
-        model_id = int(model_id)
-    except:
-        abort(make_response(jsonify({"message": f"{cls.__name__} {model_id} invalid"}), 400))
-
-    model = cls.query.get(model_id)
-
-    if not model:
-        abort(make_response(jsonify({"message": f"{cls.__name__} {model_id} not found"}), 404))
-
-    return model
 
 @books_bp.route("/<book_id>", methods=["GET"])
 def read_one_book(book_id):
@@ -89,3 +89,33 @@ def read_all_authors():
     for author in authors:
         authors_response.append(author.to_dict())
     return jsonify(authors_response)
+
+@authors_bp.route("/<author_id>/books", methods=["POST"])
+def create_book(author_id):
+    author = validate_model(Author, author_id)
+    request_body = request.get_json()
+
+    new_book = Book(
+        title=request_body["title"],
+        description=request_body["description"],
+        author=author
+    )
+
+    db.session.add(new_book)
+    db.session.commit()
+
+    return make_response(jsonify(f"Book {new_book.title} by {new_book.author.name} successfully created"), 201)
+
+@authors_bp.route("/<author_id>/books", methods=["GET"])
+def read_all_books_by_author(author_id):
+    author = validate_model(Author, author_id)
+    books_response = []
+    for book in author.books:
+        books_response.append(
+            {
+            "id": book.id,
+            "title": book.title,
+            "description": book.description
+            }
+        )
+    return jsonify(books_response)
